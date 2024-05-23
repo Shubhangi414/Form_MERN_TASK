@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Typography, Button, Grid, Paper, Container } from '@mui/material';
+import { Typography, Button, Grid, Paper, Container, Checkbox } from '@mui/material';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
+  const [selectedAddresses, setSelectedAddresses] = useState({});
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -17,53 +18,71 @@ const UserList = () => {
     fetchUsers();
   }, []);
 
-  const handleStatusChange = async (userId, addressId, status) => {
+  const handleSelectAddress = (userId, addressId) => {
+    setSelectedAddresses((prevSelected) => {
+      const newSelected = { ...prevSelected };
+      if (newSelected[userId]?.includes(addressId)) {
+        newSelected[userId] = newSelected[userId].filter(id => id !== addressId);
+        if (newSelected[userId].length === 0) delete newSelected[userId];
+      } else {
+        if (newSelected[userId]) {
+          newSelected[userId].push(addressId);
+        } else {
+          newSelected[userId] = [addressId];
+        }
+      }
+      return newSelected;
+    });
+  };
+
+  const handleStatusChange = async (status) => {
     try {
-      await axios.patch('http://localhost:5000/api/users/addresses/status', {
-        userId,
-        addressIds: [addressId],
-        status,
-      });
-      const updatedUsers = users.map((user) =>
-        user._id === userId
-          ? {
-              ...user,
-              addresses: user.addresses.map((address) =>
-                address._id === addressId ? { ...address, status } : address
-              ),
-            }
-          : user
+      const requests = Object.keys(selectedAddresses).map(userId =>
+        axios.patch('http://localhost:5000/api/users/addresses/status', {
+          userId,
+          addressIds: selectedAddresses[userId],
+          status,
+        })
       );
-      setUsers(updatedUsers);
+      await Promise.all(requests);
+      setSelectedAddresses({});
+      const response = await axios.get('http://localhost:5000/api/users');
+      setUsers(response.data);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const handleDeleteAddresses = async (userId, addressIds) => {
+  const handleDeleteAddresses = async () => {
     try {
-      await axios.delete('http://localhost:5000/api/users/addresses', {
-        data: { userId, addressIds },
-      });
-      const updatedUsers = users.map((user) =>
-        user._id === userId
-          ? {
-              ...user,
-              addresses: user.addresses.filter((address) => !addressIds.includes(address._id)),
-            }
-          : user
+      const requests = Object.keys(selectedAddresses).map(userId =>
+        axios.delete('http://localhost:5000/api/users/addresses', {
+          data: { userId, addressIds: selectedAddresses[userId] },
+        })
       );
-      setUsers(updatedUsers);
+      await Promise.all(requests);
+      setSelectedAddresses({});
+      const response = await axios.get('http://localhost:5000/api/users');
+      setUsers(response.data);
     } catch (error) {
       console.error(error);
     }
   };
 
   return (
-   <Container>
-   <Typography variant="h4" gutterBottom textAlign={'center'}>
-   USER LIST
- </Typography>
+    <Container>
+      <Typography variant="h4" gutterBottom textAlign={'center'}>
+        USER LIST
+      </Typography>
+      <Button variant="contained" color="primary" sx={{ mr: 1 }} onClick={() => handleStatusChange('valid')}>
+        Mark Selected as Valid
+      </Button>
+      <Button variant="contained" color="secondary" sx={{ mr: 1 }} onClick={() => handleStatusChange('invalid')}>
+        Mark Selected as Invalid
+      </Button>
+      <Button variant="contained" color="error" onClick={handleDeleteAddresses}>
+        Delete Selected
+      </Button>
       <Grid container spacing={3}>
         {users.map((user) => (
           <Grid item xs={12} key={user._id}>
@@ -72,25 +91,25 @@ const UserList = () => {
               <Typography variant="body1">Age: {user.age}</Typography>
               <Typography variant="h5">Addresses:</Typography>
               {user.addresses.map((address) => (
-                <div key={address._id}>
+                <div key={address._id} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Checkbox
+                    checked={selectedAddresses[user._id]?.includes(address._id) || false}
+                    onChange={() => handleSelectAddress(user._id, address._id)}
+                  />
                   <Typography variant="body1">{`${address.houseNo}, ${address.city}, ${address.state}, ${address.country}`}</Typography>
-                  <Typography variant="body2">Status: {address.status}</Typography>
-                  <Button variant="contained" color="primary" sx={{ mr: 1 }} onClick={() => handleStatusChange(user._id, address._id, 'valid')}>
-                    Mark as Valid
-                  </Button>
-                  <Button variant="contained" color="secondary" sx={{ mr: 1 }} onClick={() => handleStatusChange(user._id, address._id, 'invalid')}>
-                    Mark as Invalid
-                  </Button>
-                  <Button variant="contained" color="error" onClick={() => handleDeleteAddresses(user._id, [address._id])}>
-                    Delete
-                  </Button>
+                  <Typography
+                    variant="body2"
+                    sx={{ ml: 'auto', fontStyle: 'italic', fontWeight: 'bold', color: address.status === 'valid' ? 'blue' : 'red' }}
+                  >
+                    Status: {address.status}
+                  </Typography>
                 </div>
               ))}
             </Paper>
           </Grid>
         ))}
       </Grid>
-      </Container>
+    </Container>
   );
 };
 
