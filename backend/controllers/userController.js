@@ -57,4 +57,35 @@ const deleteAddresses = async (req, res) => {
   }
 };
 
-module.exports = { addUser, getUsers, updateAddressStatus, deleteAddresses };
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { name, age, addresses } = req.body;
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+    user.name = name;
+    user.age = age;
+    user.addresses = addresses;
+    await user.save();
+    res.send(user);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+    res.status(200).send('User deleted');
+  } catch (error) {
+    res.status(500).send(error);
+  }
+};
+
+module.exports = { addUser, getUsers, updateAddressStatus, deleteAddresses, updateUser , deleteUser};

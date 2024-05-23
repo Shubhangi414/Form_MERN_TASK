@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Typography, Button, Grid, Paper, Container, Checkbox } from '@mui/material';
+import { Link } from 'react-router-dom';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -69,20 +70,31 @@ const UserList = () => {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/users/${userId}`);
+      setUsers(users.filter(user => user._id !== userId));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <Container>
-      <Typography variant="h4" gutterBottom textAlign={'center'}>
-        USER LIST
-      </Typography>
-      <Button variant="contained" color="primary" sx={{ mr: 1 }} onClick={() => handleStatusChange('valid')}>
-        Mark Selected as Valid
-      </Button>
-      <Button variant="contained" color="secondary" sx={{ mr: 1 }} onClick={() => handleStatusChange('invalid')}>
-        Mark Selected as Invalid
-      </Button>
-      <Button variant="contained" color="error" onClick={handleDeleteAddresses}>
-        Delete Selected
-      </Button>
+      <div style={{ position: 'sticky', top: 0, backgroundColor: 'lightgrey', zIndex: 1, padding: '10px 0' }}>
+        <Typography variant="h4" gutterBottom textAlign={'center'}>
+          USER LIST
+        </Typography>
+        <Button variant="contained" color="primary" sx={{ mr: 1 }} onClick={() => handleStatusChange('valid')}>
+          Mark Selected as Valid
+        </Button>
+        <Button variant="contained" color="secondary" sx={{ mr: 1 }} onClick={() => handleStatusChange('invalid')}>
+          Mark Selected as Invalid
+        </Button>
+        <Button variant="contained" color="error" onClick={handleDeleteAddresses}>
+          Delete Selected
+        </Button>
+      </div>
       <Grid container spacing={3}>
         {users.map((user) => (
           <Grid item xs={12} key={user._id}>
@@ -105,6 +117,12 @@ const UserList = () => {
                   </Typography>
                 </div>
               ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                <Link to={`/editUser/${user._id}`}>
+                  <Button variant="contained" color="primary">Edit User</Button>
+                </Link>
+                <Button variant="contained" color="secondary" onClick={() => handleDeleteUser(user._id)}>Delete User</Button>
+              </div>
             </Paper>
           </Grid>
         ))}

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Button, TextField, Container, Grid, IconButton, Typography} from '@mui/material';
+import { Button, TextField, Container, Grid, IconButton, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 
 const UserForm = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [addresses, setAddresses] = useState([
@@ -12,11 +14,27 @@ const UserForm = () => {
   ]);
   const [errors, setErrors] = useState({ name: '', age: '', addresses: [] });
 
+  useEffect(() => {
+    if (id) {
+      const fetchUser = async () => {
+        try {
+          const response = await axios.get(`http://localhost:5000/api/users/${id}`);
+          const user = response.data;
+          setName(user.name);
+          setAge(user.age);
+          setAddresses(user.addresses);
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      fetchUser();
+    }
+  }, [id]);
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = { name: '', age: '', addresses: [] };
-    
-  
+
     if (!name.trim() || !/^[a-zA-Z\s]*$/.test(name.trim())) {
       newErrors.name = 'Name must contain alphabets and spaces only';
       isValid = false;
@@ -24,15 +42,13 @@ const UserForm = () => {
       newErrors.name = 'Name must be at least 3 characters long';
       isValid = false;
     }
-  
-    
+
     if (isNaN(age) || parseInt(age) < 6) {
       newErrors.age = 'Age must be a number greater than 5';
       isValid = false;
     }
-  
-   
-    const addressErrors = addresses.map((address, index) => {
+
+    const addressErrors = addresses.map((address) => {
       const errors = {};
       if (!address.city.trim() || !/^[a-zA-Z\s]*$/.test(address.city.trim())) {
         errors.city = 'City must contain alphabets and spaces only';
@@ -64,15 +80,16 @@ const UserForm = () => {
       }
       return errors;
     });
-  
+
     newErrors.addresses = addressErrors;
     setErrors(newErrors);
     return isValid;
   };
+
   const handleAddAddress = () => {
     setAddresses([
       ...addresses,
-      { city: '', state: '', houseNo: '', country: '', status: 'valid' },
+      { city: '', state: '', houseNo: '', country: '', status: 'invalid' },
     ]);
   };
 
@@ -87,16 +104,26 @@ const UserForm = () => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        const response = await axios.post('http://localhost:5000/api/users', {
-          name,
-          age,
-          addresses,
-        });
-        console.log(response.data);
-      
+        if (id) {
+          // Update existing user
+          await axios.put(`http://localhost:5000/api/users/${id}`, {
+            name,
+            age,
+            addresses,
+          });
+        } else {
+          // Create new user
+          await axios.post('http://localhost:5000/api/users', {
+            name,
+            age,
+            addresses,
+          });
+        }
+        // Reset form
         setName('');
         setAge('');
         setAddresses([{ city: '', state: '', houseNo: '', country: '', status: 'invalid' }]);
+        navigate('/userList'); // Navigate back to the user list
       } catch (error) {
         console.error(error);
       }
@@ -105,11 +132,10 @@ const UserForm = () => {
 
   return (
     <Container>
-    <Typography variant="h4" textAlign={'center'} gutterBottom>
-        USER FORM
+      <Typography variant="h4" textAlign={'center'} gutterBottom>
+        {id ? 'Edit User' : 'User Form'}
       </Typography>
       <form onSubmit={handleSubmit}>
-     
         <Grid container spacing={2}>
           <Grid item xs={12}>
             <TextField
@@ -191,12 +217,13 @@ const UserForm = () => {
               <AddIcon />
             </IconButton>
           </Grid>
-          <Grid item xs={12} >
-            <Button type="submit" variant="contained" color="primary" >
+          <Grid item xs={12}>
+            <Button type="submit" variant="contained" color="primary">
               Submit
             </Button>
-            <br/>  <br/> 
-            <Link to="/userList" >
+            <br />
+            <br />
+            <Link to="/userList">
               <Button variant="contained" color="secondary">
                 SHOW USER LIST
               </Button>
